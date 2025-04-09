@@ -168,5 +168,4 @@ WebGPU는 클라이언트 디바이스의 GPU 메모리에 직접 접근하여 �
 [4] Dirhoussi, A. (2023). Semantic search powered by WASM and WGPU. *Medium.*  
 [5] Rossbach, C. J. (2022). WebGPU Security Model and Threats. *W3C Security Workshop.*  
 [6] Google Developers. (2023). WebGPU & IndexedDB for Scalable Data. https://developer.chrome.com/docs/webgpu  
-[7] Mozilla. (2024). Graceful fallback strategies in browser GPU computing. *MDN Web Docs*.
-
+[7] Mozilla. (2024). Graceful fallback strategies in browser GPU computing. *MDN Web Docs*. 
