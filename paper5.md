@@ -8,6 +8,12 @@
 
 ---
 
+### 영문 초록(English Abstract)
+
+This study proposes and implements a GPU-native, real-time vector database system based on WebGPU. While conventional vector search systems rely on server-side architectures and CUDA-enabled GPUs, they face limitations such as hardware dependency and maintenance costs. The proposed system leverages WebGPU to perform GPU computations directly within the browser, enabling client-side vector indexing and search without external servers. It utilizes cosine similarity calculation, parallel sorting, and top-K extraction via WGSL shaders, and applies an IndexedDB-based paging mechanism to support scalability. Experimental results show up to a 6× performance improvement over WASM-based implementations, with real-time search feasibility demonstrated even for 1M vectors.
+
+---
+
 ### 키워드
 WebGPU 기반 연산 (WebGPU-based Computation)
 벡터 데이터베이스 (Vector Database)
