@@ -94,8 +94,3 @@ qa_chain = RetrievalQA.from_chain_type(llm=OpenAI(), retriever=vectordb.as_retri
 # 사용자 질문
 qa_chain.run("이 문서에 따르면 제품 환불 규정은 어떻게 되나요?")
 ```
-
----
-
-필요하시면 실제 **RAG 기반 문서 Q&A 챗봇**을 만들기 위한 단계별 가이드도 만들어 드릴게요!  
-혹시 지금 생각 중인 사용 사례 있으신가요? 😄
