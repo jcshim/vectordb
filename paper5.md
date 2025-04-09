@@ -191,3 +191,190 @@ WebGPU는 클라이언트 디바이스의 GPU 메모리에 직접 접근하여 �
 [5] Rossbach, C. J. (2022). WebGPU Security Model and Threats. *W3C Security Workshop.*  
 [6] Google Developers. (2023). WebGPU & IndexedDB for Scalable Data. https://developer.chrome.com/docs/webgpu  
 [7] Mozilla. (2024). Graceful fallback strategies in browser GPU computing. *MDN Web Docs*.
+
+
+# 실험1
+
+실험을 실제로 수행하려면, 각 시스템(WebGPU, FAISS, WASM)에 대해 동일한 조건에서 벡터 검색 성능을 비교할 수 있는 환경을 세팅하고, 정량적 측정이 가능하도록 해야 합니다. 아래는 구체적인 실험 설계 및 실행 단계입니다.
+
+---
+
+### 🔬 1. **실험 목표 명확화**
+- **목적**: 동일한 벡터 검색 문제에 대해 세 가지 시스템(WebGPU, FAISS, WASM)의 성능을 공정하게 비교
+- **지표**: QPS(초당 쿼리 수), 평균 Latency(ms), Top-1 정확도(%)
+
+---
+
+### 🧱 2. **공통 실험 환경 구성**
+- **데이터셋**: 고정된 벡터 데이터셋 사용 (예: 100만 개, 128차원 벡터)
+- **질의 벡터 수**: 예: 1,000~10,000개
+- **검색 기준**: 코사인 유사도 (또는 L2 거리) – 구현에 따라 동일하게 맞춤
+- **Top-1 정확도 계산 기준**: Ground truth는 brute-force 검색 결과로 정함
+
+---
+
+### ⚙️ 3. **각 시스템 구현 및 설정**
+#### ① WebGPU (본 연구)
+- 브라우저에서 실행되는 WebGPU 기반 검색 엔진 구현
+- 쿼리 → GPU 업로드 → 유사도 계산(WGSL 커널) → Top-1 추출
+- **성능 측정**:
+  - `performance.now()`로 쿼리별 latency 측정
+  - 전체 처리 시간 / 쿼리 수 = QPS
+  - 정답 비교를 통해 Top-1 정확도 산출
+
+#### ② FAISS (GPU)
+- 동일한 데이터셋과 쿼리로 `faiss.IndexFlatIP` 또는 `IndexIVFPQ` 이용
+- **성능 측정**:
+  - Python 타이머 (`time.perf_counter`)로 검색 시간 측정
+  - FAISS의 Top-1 결과와 Ground Truth 비교
+
+#### ③ WASM (CPU)
+- WebAssembly 모듈로 구현된 유사도 검색기 실행 (브라우저에서 가능)
+- 벡터를 메모리에 로드하고, CPU에서 거리 계산
+- **성능 측정**:
+  - JS `performance.now()`로 latency 측정
+  - 검색 결과 정확도 비교
+
+---
+
+### 📊 4. **측정 방법 예시 코드 (WebGPU 기준)**
+```javascript
+const start = performance.now();
+const results = await searchWebGPU(queryVectors);
+const end = performance.now();
+const latency = (end - start) / queryVectors.length;
+const qps = queryVectors.length / ((end - start) / 1000);
+```
+
+---
+
+### 📈 5. **데이터 수집 및 통계**
+- 각 시스템별로 **3회 이상 반복 실험**하여 평균 및 표준편차 계산
+- 이상값(outlier)은 제외하거나 별도 표기
+- 실험 로그 자동 저장 (예: CSV로 남기기)
+
+---
+
+### ✅ 6. **정확도 평가**
+- Ground Truth: FAISS의 brute-force를 정답으로 간주
+- Top-1 예측 결과와 정답 비교하여 정확도 산출
+```python
+correct = sum([pred == gt for pred, gt in zip(preds, ground_truth)])
+accuracy = correct / len(ground_truth) * 100
+```
+
+---
+
+### 🔁 7. **성능 측정 조건 명시**
+- GPU 사양 (예: RTX 3080, WebGPU 호환 브라우저)
+- CPU 사양 (예: Intel i7, RAM 16GB)
+- 브라우저 종류 및 버전
+- 기타: 쿼리 수, 벡터 차원 수, 반복 횟수 등
+
+# 실험2
+이 실험은 **WebGPU 기반 벡터 검색 시스템의 확장성 및 실시간성**을 평가하기 위한 실험으로 보입니다. 실험 목적은 벡터 수 증가에 따라 성능(QPS, Latency)과 자원 사용량(GPU 메모리, IndexedDB 활용 등)이 어떻게 변하는지를 분석하는 것입니다. 아래와 같은 방식으로 체계적으로 실험을 수행할 수 있습니다.
+
+---
+
+## ✅ 실험 목표 요약
+
+| 항목 | 설명 |
+|------|------|
+| **목적** | 벡터 수 증가에 따른 검색 성능(QPS, Latency)과 리소스 사용(GPU 메모리, IndexedDB)의 변화 측정 |
+| **핵심 지표** | QPS, 평균 Latency, GPU 메모리 사용량, IndexedDB 활용 여부 |
+| **도구** | WebGPU + JavaScript, IndexedDB, 브라우저 성능 측정 API (`performance.now()`, WebGPU memory usage 등) |
+
+---
+
+## 🧪 실험 구성 단계
+
+### 1. **데이터셋 준비**
+- 10K, 100K, 500K, 1M 개의 고정 길이 벡터 (예: 128차원 float32 벡터)
+- 벡터 생성: 난수 또는 실제 임베딩 데이터 사용 (FAISS 학습된 벡터 등)
+- 저장 방식:
+  - 10K, 100K는 **GPU 메모리만 사용**
+  - 500K, 1M은 **IndexedDB에 저장 후 paging or chunk 로드**
+
+### 2. **시스템 구현 구성**
+- WebGPU compute shader를 이용해 **벡터 유사도 계산**
+- IndexedDB에서 벡터를 로드할 때는 **IndexedDB → GPU로 chunk 전송**
+- GPU 메모리 제한 고려 → 브라우저별 한계 4~6GB
+- 쿼리 벡터는 고정 수 (예: 1,000개), 반복 검색
+
+### 3. **측정 항목별 수집 방식**
+
+| 항목 | 측정 방법 |
+|------|-----------|
+| QPS | `queryCount / totalTimeSec` 계산 |
+| 평균 Latency | `totalTime / queryCount` |
+| GPU 메모리 사용 | `navigator.gpu.getPreferredCanvasFormat()` 사용 불가 → 대신 사용한 `Float32Array` 총 크기 + `buffer` 바이트 계산 |
+| IndexedDB 사용 | `openDB()`, `getAll()`, `get()` 호출 시간 로그 + 캐싱 여부 |
+
+예시 코드 (QPS 및 Latency):
+```javascript
+const start = performance.now();
+await runQueryBatch(queryVectors);  // 쿼리 1000개 실행
+const end = performance.now();
+const qps = 1000 / ((end - start) / 1000);
+const latency = (end - start) / 1000;
+```
+
+---
+
+## 🧠 실험 설계 포인트
+
+### 📦 메모리 최적화 관점
+- 1M 벡터 = 1M × 128 × 4B = **약 512MB**
+  - 실측 GPU 사용량 3.6GB는 **중간 결과, similarity matrix, sorting buffer** 등을 포함한 것으로 추정됨
+- IndexedDB는 500K 이상일 때만 사용
+  - 브라우저 로딩 병목 가능 → `await` 기반 비동기 로딩 설계 필수
+
+### 🔁 반복성 확보
+- 각 벡터 수별 실험은 **3회 이상 반복**
+- 브라우저 캐시, Garbage Collection 등 외부 요인 최소화
+
+---
+
+## 📊 결과 정리 팁
+
+결과 표의 각 지표에 대해 그래프로 시각화하면 논문/발표에 유리합니다:
+
+- **QPS, Latency vs. 벡터 수**: 선형 or 로그 스케일 비교
+- **메모리 사용량 vs. 벡터 수**: 선형 증가 확인
+- **IndexedDB 사용 유무 효과**: 로딩 시간, latency 영향
+
+---
+
+## 📁 예시 실험 디렉터리 구조
+```
+/experiment/
+  /data/
+    vectors_10k.json
+    vectors_100k.json
+    ...
+  /src/
+    search_webgpu.js
+    indexeddb_loader.js
+    benchmark.js
+  /results/
+    result_10k.csv
+    result_1m.csv
+```
+
+---
+
+## 🛠️ 필요한 도구
+- 최신 크롬/엣지 (WebGPU 지원)
+- 브라우저 개발자 도구 (Performance 탭 활용)
+- Chrome DevTools Recorder → 실험 자동화 가능
+- `console.log()` 기록 자동 수집 스크립트
+
+---
+
+## 📌 추가 아이디어
+- **속도-정확도 tradeoff 실험**: 일부 차원만 선택하여 비교
+- **동시 쿼리 성능**: WebGPU queue에 batch 2~3개 넣어서 처리량 측정
+
+---
+
+원하시면 이 실험을 자동으로 수행할 수 있는 JS 템플릿도 드릴 수 있습니다. IndexedDB + WebGPU 연동 예제 필요하신가요?
